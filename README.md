@@ -1,27 +1,31 @@
 # omp-cmux
 
-Typed [Oh My Pi](https://omp.sh) tools for controlling [cmux](https://github.com/manaflow-ai/cmux) end to end: windows, workspaces, panes, surfaces, terminals, the sidebar, the event stream, and cmux-owned browser surfaces.
+Typed tools for [Pi](https://github.com/badlogic/pi) and [Oh My Pi](https://omp.sh) coding agents to control [cmux](https://github.com/manaflow-ai/cmux) end to end: windows, workspaces, panes, surfaces, terminals, the sidebar, the event stream, and cmux-owned browser surfaces.
 
-Agents can already invoke the `cmux` CLI through a shell. This extension gives them a narrower interface with structured arguments, explicit targets, JSON output, bounded reads, approval tiers, and no shell interpolation.
+Agents can already invoke the `cmux` CLI through a shell. This extension gives them a typed interface with structured arguments, explicit targets, JSON output, bounded reads, approval tiers, and no shell interpolation.
 
 ## Install
+
+### Oh My Pi (OMP)
 
 ```sh
 omp install github:wolfiesch/omp-cmux
 ```
 
-For local development:
+### Pi (`@mariozechner/pi`)
+
+Clone or add to your Pi extensions directory (`~/.pi/agent/extensions/` or project `.pi/extensions/`):
 
 ```sh
-omp install /path/to/omp-cmux
+git clone https://github.com/wolfiesch/omp-cmux.git
+cd omp-cmux && bun install
+ln -s "$PWD/src/index.ts" ~/.pi/agent/extensions/cmux.ts
 ```
 
 Requirements:
-
-- Oh My Pi 17.3.4 or newer
+- Pi or Oh My Pi
 - A running cmux instance with automation access
 - The `cmux` CLI available on `PATH`
-
 ## Tools
 
 | Tool | Capability | Approval tier |
@@ -54,7 +58,7 @@ Open example.com in a cmux browser split, snapshot it, and read the page title.
 
 ## Design
 
-The tools call `cmux` through OMP's argv-based extension execution API. User values remain individual arguments rather than being concatenated into a shell command.
+Most tools call `cmux` through the host's argv-based execution API, so user values remain individual arguments rather than shell-interpolated strings. `cmux_rpc` and `cmux_events poll` connect directly to cmux's per-user Unix socket, authenticate with the inherited capability or socket password, and use the newline-delimited v2 protocol. `cmux_events wait_for` remains a CLI call because it uses the tmux-compatible command path.
 
 - Listing actions pass `--json --id-format both`, so results carry both stable refs and UUIDs.
 - New workspaces, panes, splits, and surfaces default to `focus: false`.
@@ -63,6 +67,8 @@ The tools call `cmux` through OMP's argv-based extension execution API. User val
 - Event polls are bounded by count and timeout; a timeout with partial output returns the captured frames.
 - Read output is capped at 64 KiB per call.
 - Parameter constraints (ranges, enums, mutual exclusions) are advertised in the tool schemas and revalidated before execution.
+
+The extension entrypoint is `src/index.ts`. Tool domains, validation, host execution, schemas, and socket transport live in separate modules under `src/`.
 
 ## Development
 
@@ -77,7 +83,7 @@ Test against a live cmux instance:
 
 ```sh
 cmux ping
-omp --extension ./index.ts
+omp --extension ./src/index.ts
 ```
 
 ## License

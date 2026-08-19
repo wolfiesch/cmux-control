@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { TypeCompiler } from "@sinclair/typebox/compiler";
+import type { TSchema } from "@sinclair/typebox";
 import cmuxExtension, {
 	buildBrowserArgs,
 	buildEventsArgs,
@@ -8,7 +10,7 @@ import cmuxExtension, {
 	buildStateArgs,
 	buildTerminalArgs,
 	executeCmux,
-} from "./index";
+} from "./src/index";
 
 describe("cmux_state", () => {
 	test("returns stable refs and UUIDs when inspecting the tree", () => {
@@ -220,6 +222,9 @@ describe("cmux_rpc", () => {
 		expect(() => buildRpcArgs({ method: "workspace.list", params: "{bad" })).toThrow(
 			"params must be a valid JSON document",
 		);
+		expect(() => buildRpcArgs({ method: "workspace.list", params: "[]" })).toThrow(
+			"params must be a JSON object",
+		);
 	});
 });
 
@@ -315,5 +320,73 @@ describe("execution results", () => {
 		expect((result.content as Array<{ text: string }>)[0].text).toContain(
 			"may be older than this extension",
 		);
+	});
+});
+
+describe("extension registration compatibility", () => {
+	test("registers tools with valid TypeBox schemas that pass TypeCompiler on all 7 tools", () => {
+		const tools: Array<{ name: string; description: string; parameters: Record<string, unknown> }> = [];
+		const fakePi = {
+			registerTool(tool: { name: string; description: string; parameters: Record<string, unknown> }) {
+				tools.push(tool);
+			},
+		};
+
+		cmuxExtension(fakePi as never);
+		expect(tools.length).toBe(7);
+		const names = tools.map((t) => t.name);
+		expect(names).toEqual([
+			"cmux_state",
+			"cmux_layout",
+			"cmux_terminal",
+			"cmux_signal",
+			"cmux_events",
+			"cmux_browser",
+			"cmux_rpc",
+		]);
+
+		for (const tool of tools) {
+			const compiled = TypeCompiler.Compile(tool.parameters as unknown as TSchema);
+			expect(compiled).toBeDefined();
+		}
+
+		// Verify schema validation on cmux_state actions
+		const stateTool = tools.find((t) => t.name === "cmux_state");
+		const stateCompiler = TypeCompiler.Compile(stateTool?.parameters as unknown as TSchema);
+		expect(stateCompiler.Check({ action: "ping" })).toBe(true);
+		expect(stateCompiler.Check({ action: "tree", all: true })).toBe(true);
+		expect(stateCompiler.Check({ action: "not_a_real_action" })).toBe(false);
+	});
+	test("uses pi.zod directly when provided by OMP", () => {
+		let zodUsed = false;
+		const makeNode = () => {
+			const node = {
+				optional: () => node,
+				describe: () => node,
+				min: () => node,
+				max: () => node,
+				int: () => node,
+			};
+			return node;
+		};
+		const fakeZod = {
+			string: makeNode,
+			number: makeNode,
+			boolean: makeNode,
+			enum: makeNode,
+			object: () => {
+				zodUsed = true;
+				return makeNode();
+			},
+		};
+
+		const fakePi = {
+			zod: fakeZod,
+			setLabel: () => {},
+			registerTool: () => {},
+		};
+
+		cmuxExtension(fakePi as unknown as { registerTool: () => void });
+		expect(zodUsed).toBe(true);
 	});
 });

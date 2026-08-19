@@ -19,6 +19,9 @@
 - Parameter constraints (ranges, enums) are now advertised in the tool schemas instead of only being enforced at runtime.
 - Successful commands no longer merge stderr into output; stderr is used only when stdout is empty, which drops legacy-alias notices.
 - Errors mentioning unknown commands or options add a cmux version-skew hint.
+- Pi and Oh My Pi now share the same TypeBox-compatible extension entrypoint, with OMP-specific APIs treated as optional host capabilities.
+- Split the extension monolith into domain modules for registration, schemas, validation, host execution, socket transport, and each tool family.
+- `cmux_rpc` and bounded `cmux_events` polling now use cmux's direct Unix socket v2 protocol, including capability/password authentication and socket ownership checks. Other operations retain the argv-based CLI path.
 
 ## [0.1.0] - 2026-08-19
 

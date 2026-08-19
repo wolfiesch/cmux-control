@@ -1,7 +1,7 @@
 {
   "name": "omp-cmux",
   "version": "0.2.0",
-  "description": "Typed OMP tools for safe, programmatic cmux workspace, pane, surface, and terminal control.",
+  "description": "Typed cmux automation tools for Pi and Oh My Pi coding agents: safe, programmatic workspace, pane, surface, and terminal control.",
   "type": "module",
   "license": "MIT",
   "homepage": "https://github.com/wolfiesch/omp-cmux",
@@ -10,14 +10,20 @@
     "url": "git+https://github.com/wolfiesch/omp-cmux.git"
   },
   "keywords": [
+    "pi-extension",
+    "pi-coding-agent",
+    "mariozechner-pi",
     "oh-my-pi",
     "omp",
     "cmux",
     "terminal",
+    "multiplexer",
+    "agent-tools",
+    "coding-agent",
     "agents"
   ],
   "files": [
-    "index.ts",
+    "src",
     "skills",
     "README.md",
     "CHANGELOG.md",
@@ -29,10 +35,19 @@
   },
   "omp": {
     "extensions": [
-      "./index.ts"
+      "./src/index.ts"
     ]
   },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.52"
+  },
   "devDependencies": {
+    "@types/bun": "^1.3.14",
     "typescript": "^5.9.2"
   }
 }
