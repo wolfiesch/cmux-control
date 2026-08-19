@@ -1,0 +1,37 @@
+{
+  "name": "omp-cmux",
+  "version": "0.1.0",
+  "description": "Typed OMP tools for safe, programmatic cmux workspace, pane, surface, and terminal control.",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/wolfiesch/omp-cmux",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wolfiesch/omp-cmux.git"
+  },
+  "keywords": [
+    "oh-my-pi",
+    "omp",
+    "cmux",
+    "terminal",
+    "agents"
+  ],
+  "files": [
+    "index.ts",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "omp": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}
