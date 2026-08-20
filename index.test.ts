@@ -96,6 +96,39 @@ describe("cmux_layout", () => {
 			"workspace:2",
 		]);
 	});
+
+	test("places panes into the right-sidebar dock", () => {
+		expect(
+			buildLayoutArgs({ action: "new_pane", workspace: "workspace:2", placement: "dock" }),
+		).toEqual([
+			"new-pane",
+			"--workspace",
+			"workspace:2",
+			"--type",
+			"terminal",
+			"--placement",
+			"dock",
+			"--focus",
+			"false",
+		]);
+		expect(() =>
+			buildLayoutArgs({ action: "new_pane", workspace: "workspace:2", placement: "sidebar" }),
+		).toThrow("placement must be workspace or dock");
+	});
+
+	test("opens and validates custom sidebars by name", () => {
+		expect(buildLayoutArgs({ action: "sidebar_open", sidebar: "agents" })).toEqual([
+			"sidebar",
+			"open",
+			"agents",
+		]);
+		expect(buildStateArgs({ action: "sidebar_validate" })).toEqual(["sidebar", "validate"]);
+		expect(buildStateArgs({ action: "sidebar_validate", sidebar: "agents" })).toEqual([
+			"sidebar",
+			"validate",
+			"agents",
+		]);
+	});
 });
 
 describe("cmux_terminal", () => {

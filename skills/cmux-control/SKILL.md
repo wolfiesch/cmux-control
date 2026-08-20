@@ -41,6 +41,8 @@ Listing actions return JSON with both refs and UUIDs. Mutations print `OK <ref>`
 - Create a surface for another terminal, browser, simulator, or native agent session in an existing pane.
 - Create a workspace for independent activity with its own working directory and metadata.
 - Create separate Git worktrees before placing concurrent writing agents in different workspaces unless file ownership is provably disjoint.
+- Create a Dock tab (`placement: "dock"` on `new_pane`/`new_surface`) for a persistent watcher, log tail, or dashboard beside every workspace in the window. Dock handles work with the normal read, send, and close actions.
+- Manage interpreted custom sidebars with `sidebar_validate` (cmux_state), then `sidebar_open` to show one as a pane or `sidebar_select` to preview it in the left sidebar.
 
 ## Terminal Input
 

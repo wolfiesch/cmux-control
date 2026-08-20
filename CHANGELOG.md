@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0] - 2026-08-20
+
+### Added
+
+- Dock placement: `new_pane` and `new_surface` accept `placement: "dock"` to create terminal and browser tabs in the right-sidebar Dock; Dock handles work with the existing read, send, and close actions.
+- Custom sidebar management: `sidebar_validate` on `cmux_state`, plus `sidebar_open` (open as a pane) and `sidebar_select` (left-sidebar preview) on `cmux_layout`, covering the interpreted SwiftUI sidebar workflow.
+- Dual-host packaging: the extension also loads under legacy Pi (`pi.extensions`), with a TypeBox schema adapter and direct-socket fallback when no host exec API exists.
+
 ## [0.2.0] - 2026-08-19
 
 ### Added

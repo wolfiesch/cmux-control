@@ -9,6 +9,12 @@ export function buildStateArgs(params: Params): string[] {
 			return ["capabilities"];
 		case "browser_status":
 			return ["--json", "browser-status"];
+		case "sidebar_validate": {
+			const args = ["sidebar", "validate"];
+			const sidebar = optionalString(params, "sidebar");
+			if (sidebar !== undefined) args.push(sidebar);
+			return args;
+		}
 		case "identify": {
 			const args = ["--json", "identify", "--no-caller"];
 			pushTargets(args, params, ["workspace", "surface", "window"]);

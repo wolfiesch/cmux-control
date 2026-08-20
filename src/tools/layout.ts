@@ -11,6 +11,15 @@ import {
 	requiredString,
 } from "../validation";
 
+function pushPlacement(args: string[], params: Params): void {
+	const placement = optionalString(params, "placement");
+	if (placement === undefined) return;
+	if (placement !== "workspace" && placement !== "dock") {
+		throw new Error("placement must be workspace or dock");
+	}
+	args.push("--placement", placement);
+}
+
 export function buildLayoutArgs(params: Params): string[] {
 	switch (actionOf(params)) {
 		case "new_window":
@@ -44,6 +53,7 @@ export function buildLayoutArgs(params: Params): string[] {
 			pushOptional(args, "--direction", optionalString(params, "direction"));
 			pushOptional(args, "--url", optionalString(params, "url"));
 			pushOptional(args, "--profile", optionalString(params, "profile"));
+			pushPlacement(args, params);
 			pushTargets(args, params, ["window"]);
 			pushFocus(args, params);
 			return args;
@@ -60,6 +70,7 @@ export function buildLayoutArgs(params: Params): string[] {
 			pushOptional(args, "--url", optionalString(params, "url"));
 			pushOptional(args, "--provider", provider);
 			pushOptional(args, "--renderer", renderer);
+			pushPlacement(args, params);
 			pushTargets(args, params, ["workspace", "window"]);
 			pushFocus(args, params);
 			return args;
@@ -199,6 +210,10 @@ export function buildLayoutArgs(params: Params): string[] {
 			pushTargets(args, params, ["window"]);
 			return args;
 		}
+		case "sidebar_open":
+			return ["sidebar", "open", requiredString(params, "sidebar")];
+		case "sidebar_select":
+			return ["sidebar", "select", requiredString(params, "sidebar")];
 		case "close_window":
 			return ["close-window", "--window", requiredString(params, "window")];
 		default:

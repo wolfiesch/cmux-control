@@ -48,6 +48,7 @@ export default function cmuxExtension(pi: ExtensionAPI): void {
 					"ping",
 					"capabilities",
 					"browser_status",
+					"sidebar_validate",
 					"identify",
 					"tree",
 					"list_windows",
@@ -76,6 +77,7 @@ export default function cmuxExtension(pi: ExtensionAPI): void {
 			query: z.string().optional().describe("Search text (find_window)"),
 			content: z.boolean().optional().describe("Search terminal content, not just titles (find_window)"),
 			limit: z.number().int().min(1).max(500).optional().describe("Maximum entries (list_log)"),
+			sidebar: z.string().optional().describe("Custom sidebar name (sidebar_validate); omit to validate all"),
 		}),
 		loadMode: "discoverable",
 		approval: "read",
@@ -116,6 +118,8 @@ export default function cmuxExtension(pi: ExtensionAPI): void {
 					"close_surface",
 					"close_workspace",
 					"close_window",
+					"sidebar_open",
+					"sidebar_select",
 				])
 				.describe("Layout operation"),
 			...commonTargets,
@@ -137,6 +141,14 @@ export default function cmuxExtension(pi: ExtensionAPI): void {
 			profile: z.string().optional().describe("Browser profile name or UUID"),
 			provider: z.enum(["codex", "claude", "opencode"]).optional().describe("Agent-session provider"),
 			renderer: z.enum(["react", "solid"]).optional().describe("Agent-session renderer"),
+			placement: z
+				.enum(["workspace", "dock"])
+				.optional()
+				.describe("Target container for new_pane and new_surface; dock targets the right-sidebar Dock"),
+			sidebar: z
+				.string()
+				.optional()
+				.describe("Custom sidebar name (sidebar_open opens it as a pane; sidebar_select previews it in the left sidebar)"),
 			target_pane: target,
 			before: target,
 			after: target,
