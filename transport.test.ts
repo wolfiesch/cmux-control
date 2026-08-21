@@ -9,7 +9,7 @@ import { makeRpcExecute } from "./src/tools/rpc";
 type ClientHandler = (socket: Socket) => void;
 
 async function withSocketServer<T>(handler: ClientHandler, run: (socketPath: string) => Promise<T>): Promise<T> {
-	const directory = mkdtempSync(join(tmpdir(), "omp-cmux-"));
+	const directory = mkdtempSync(join(tmpdir(), "cmux-control-"));
 	const socketPath = join(directory, "cmux.sock");
 	const server = createServer(handler);
 	await new Promise<void>((resolve, reject) => {

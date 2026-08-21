@@ -9,6 +9,7 @@ const SELF_ID = "01a0223c-489c-7000-b5df-36579d0b6f51";
 const INACTIVE_ID = "01a0090b-b42a-7000-b7d2-f73493409c9b";
 const WORKSPACE_ID = "58514272-21EE-46FF-B1CC-DEA7B90A7719";
 const SELF_SURFACE_ID = "47EA15DA-AA37-4273-B4C9-104146FEC9B3";
+const CLAUDE_ID = "6f1c2d34-8ab9-4e51-9f02-7c3d51ea88b4";
 
 const temporaryDirectories: string[] = [];
 afterEach(() => {
@@ -61,7 +62,7 @@ function fixtureSurfaces() {
 				title: "π > Build peer discovery",
 				pane_id: "self-pane-id",
 				pane_ref: "pane:220",
-				resume_binding: { kind: "omp", checkpoint_id: SELF_ID, cwd: "/Users/test/Projects/omp-cmux" },
+				resume_binding: { kind: "omp", checkpoint_id: SELF_ID, cwd: "/Users/test/Projects/cmux-control" },
 			},
 			{
 				id: "inactive-surface-id",
@@ -73,15 +74,33 @@ function fixtureSurfaces() {
 	};
 }
 
-function fixtureRequest(top = fixtureTop()) {
+function fixtureRequest(top = fixtureTop(), surfaces = fixtureSurfaces()) {
 	return async (method: string, params: unknown): Promise<unknown> => {
 		if (method === "system.top") return top;
 		if (method === "surface.list") {
 			expect(params).toEqual({ workspace_id: WORKSPACE_ID });
-			return fixtureSurfaces();
+			return surfaces;
 		}
 		throw new Error(`unexpected method ${method}`);
 	};
+}
+
+function claudeFixture() {
+	const top = fixtureTop([
+		{ key: "claude", value: "Running" },
+		{ key: `claude.${CLAUDE_ID}`, pid: 5150, resources: { cpu_percent: 3, memory_bytes: 900 } },
+	]);
+	const surfaces = fixtureSurfaces();
+	surfaces.surfaces.push({
+		id: "claude-surface-id",
+		ref: "surface:512",
+		title: "✳ Refactor auth middleware",
+		pane_id: "claude-pane-id",
+		pane_ref: "pane:301",
+		requested_working_directory: "/Users/test/Projects/api",
+		resume_binding: { kind: "claude", checkpoint_id: CLAUDE_ID, cwd: "/Users/test/Projects/api" },
+	});
+	return fixtureRequest(top, surfaces);
 }
 
 function resultJson(result: Record<string, unknown>): Record<string, unknown> {
@@ -107,6 +126,8 @@ describe("cmux_agents", () => {
 		expect(json.truncated).toBe(false);
 		expect(sessions[0]).toMatchObject({
 			sessionId: PEER_ID,
+			kind: "omp",
+			agent: "Oh My Pi",
 			isSelf: false,
 			active: true,
 			processId: 44309,
@@ -163,8 +184,66 @@ describe("cmux_agents", () => {
 		});
 	});
 
+	test("discovers non-OMP agent sessions from the shared tag namespace", async () => {
+		const execute = makeAgentsExecute({
+			request: claudeFixture(),
+			environment: { CMUX_WORKSPACE_ID: WORKSPACE_ID, CMUX_SURFACE_ID: SELF_SURFACE_ID },
+		});
+		const result = await execute("call", { action: "list" });
+		const json = resultJson(result);
+		const sessions = json.sessions as Array<Record<string, unknown>>;
+
+		expect(result.isError).toBeUndefined();
+		expect(sessions.map((session) => session.kind).sort()).toEqual(["claude", "omp"]);
+		const claude = sessions.find((session) => session.kind === "claude");
+		expect(claude).toMatchObject({
+			agent: "Claude Code",
+			sessionId: CLAUDE_ID,
+			isSelf: false,
+			processId: 5150,
+			cwd: "/Users/test/Projects/api",
+			mapping: "surface-binding",
+		});
+		expect((claude?.workspace as Record<string, unknown>).state).toBe("Running");
+	});
+
+	test("refuses to guess a transcript format it cannot parse", async () => {
+		const execute = makeAgentsExecute({
+			request: claudeFixture(),
+			environment: { CMUX_WORKSPACE_ID: WORKSPACE_ID, CMUX_SURFACE_ID: SELF_SURFACE_ID },
+		});
+		const result = await execute("call", { action: "digest", session: CLAUDE_ID });
+		const text = (result.content as Array<{ text: string }>)[0].text;
+
+		expect(result.isError).toBe(true);
+		expect(text).toContain("cannot read Claude Code transcripts");
+		expect(text).toContain("read_screen");
+		expect(text).toContain("surface:512");
+	});
+
+	test("gives actionable guidance when an unsupported session has no mapped surface", async () => {
+		const orphanId = "8b7a6c55-1d2e-4f30-91ab-2c4d6e8f0a12";
+		const top = fixtureTop([
+			{ key: "codex", value: "Running" },
+			{ key: `codex.${orphanId}`, pid: 4242, resources: {} },
+		]);
+		const execute = makeAgentsExecute({
+			request: fixtureRequest(top),
+			environment: { CMUX_WORKSPACE_ID: WORKSPACE_ID, CMUX_SURFACE_ID: SELF_SURFACE_ID },
+		});
+		const result = await execute("call", { action: "digest", session: orphanId });
+		const text = (result.content as Array<{ text: string }>)[0].text;
+
+		expect(result.isError).toBe(true);
+		expect(text).toContain("cannot read Codex transcripts");
+		expect(text).toContain("no mapped cmux surface");
+		expect(text).toContain("process 4242");
+		expect(text).toContain("workspace:75");
+		expect(text).not.toContain("read_screen");
+	});
+
 	test("returns a bounded conversational digest for an active peer", async () => {
-		const root = mkdtempSync(join(tmpdir(), "omp-cmux-agents-"));
+		const root = mkdtempSync(join(tmpdir(), "cmux-control-agents-"));
 		temporaryDirectories.push(root);
 		const projectSessions = join(root, "-Projects-wolfxl");
 		mkdirSync(projectSessions);
