@@ -221,6 +221,27 @@ describe("cmux_agents", () => {
 		expect(text).toContain("surface:512");
 	});
 
+	test("gives actionable guidance when an unsupported session has no mapped surface", async () => {
+		const orphanId = "8b7a6c55-1d2e-4f30-91ab-2c4d6e8f0a12";
+		const top = fixtureTop([
+			{ key: "codex", value: "Running" },
+			{ key: `codex.${orphanId}`, pid: 4242, resources: {} },
+		]);
+		const execute = makeAgentsExecute({
+			request: fixtureRequest(top),
+			environment: { CMUX_WORKSPACE_ID: WORKSPACE_ID, CMUX_SURFACE_ID: SELF_SURFACE_ID },
+		});
+		const result = await execute("call", { action: "digest", session: orphanId });
+		const text = (result.content as Array<{ text: string }>)[0].text;
+
+		expect(result.isError).toBe(true);
+		expect(text).toContain("cannot read Codex transcripts");
+		expect(text).toContain("no mapped cmux surface");
+		expect(text).toContain("process 4242");
+		expect(text).toContain("workspace:75");
+		expect(text).not.toContain("read_screen");
+	});
+
 	test("returns a bounded conversational digest for an active peer", async () => {
 		const root = mkdtempSync(join(tmpdir(), "cmux-control-agents-"));
 		temporaryDirectories.push(root);

@@ -309,9 +309,11 @@ function findTranscript(session: InternalSession, configuredRoots?: string[]): {
 	const suffix = `_${session.sessionId}.jsonl`;
 	const roots = configuredRoots ?? standardSessionRoots(session.kind, session.agentDirectory);
 	if (roots.length === 0) {
+		const recovery = session.surface.ref === null
+			? `This session has no mapped cmux surface, so it has no terminal to read; cmux reports it only as process ${session.processId ?? "unknown"} in ${session.workspace.ref}.`
+			: `Read live output instead with cmux_state read_screen on ${session.surface.ref}.`;
 		throw new Error(
-			`digest cannot read ${session.agent} transcripts; this extension only parses Oh My Pi and Pi session logs. ` +
-				`Read live output instead with cmux_state read_screen on ${session.surface.ref ?? "the session surface"}.`,
+			`digest cannot read ${session.agent} transcripts; this extension only parses Oh My Pi and Pi session logs. ${recovery}`,
 		);
 	}
 	const candidates = new Map<string, { path: string; modified: number }>();
