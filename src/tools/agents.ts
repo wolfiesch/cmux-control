@@ -6,7 +6,34 @@ import { requestV2, type SocketRequestOptions } from "../transport";
 import type { Params, ToolRegistration } from "../types";
 import { actionOf, optionalBoolean, optionalInteger, optionalString } from "../validation";
 
-const OMP_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const AGENT_KIND = /^[a-z0-9][a-z0-9-]{0,31}$/;
+const SESSION_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+
+/** cmux tags agent runtimes as `<kind>.<sessionId>`; these are its known kinds. */
+const AGENT_DISPLAY_NAMES: Record<string, string> = {
+	amp: "Amp",
+	antigravity: "Antigravity",
+	claude: "Claude Code",
+	codebuddy: "CodeBuddy",
+	codex: "Codex",
+	copilot: "Copilot",
+	cursor: "Cursor",
+	factory: "Factory",
+	gemini: "Gemini",
+	grok: "Grok",
+	"hermes-agent": "Hermes Agent",
+	kimi: "Kimi",
+	kiro: "Kiro",
+	ollama: "Ollama",
+	omp: "Oh My Pi",
+	opencode: "OpenCode",
+	pi: "Pi",
+	qoder: "Qoder",
+	rovodev: "Rovo Dev",
+};
+
+/** Agent kinds whose on-disk transcript layout this extension can read. */
+const TRANSCRIPT_HOME_DIRECTORIES: Record<string, string> = { omp: ".omp", pi: ".pi" };
 const MAX_TRANSCRIPT_SCAN_BYTES = 8 * 1024 * 1024;
 const MAX_DIGEST_MESSAGE_CHARS = 2_000;
 
@@ -23,8 +50,15 @@ interface WorkspaceSelection {
 	source: "all" | "window" | "workspace" | "caller-environment" | "cmux-active-workspace";
 }
 
+interface ActiveAgentTag {
+	kind: string;
+	sessionId: string;
+	tag: JsonObject;
+}
+
 interface InternalSession {
-	kind: "omp";
+	kind: string;
+	agent: string;
 	sessionId: string;
 	active: true;
 	isSelf: boolean | null;
@@ -117,23 +151,27 @@ function selectWorkspaces(top: JsonObject, params: Params, environment: NodeJS.P
 	throw new Error("current workspace is unavailable; pass workspace, window, or all explicitly");
 }
 
-function activeTags(workspace: JsonObject): Map<string, JsonObject> {
-	const tags = new Map<string, JsonObject>();
+function activeTags(workspace: JsonObject): Map<string, ActiveAgentTag> {
+	const tags = new Map<string, ActiveAgentTag>();
 	for (const tag of objects(workspace.tags)) {
 		const key = string(tag.key);
-		if (!key?.startsWith("omp.")) continue;
-		const sessionId = key.slice(4);
-		if (OMP_SESSION_ID.test(sessionId) && number(tag.pid) !== null) tags.set(sessionId, tag);
+		const separator = key === null ? -1 : key.indexOf(".");
+		if (key === null || separator <= 0) continue;
+		const kind = key.slice(0, separator);
+		const sessionId = key.slice(separator + 1);
+		if (!AGENT_KIND.test(kind) || !SESSION_ID.test(sessionId)) continue;
+		if (number(tag.pid) === null) continue;
+		tags.set(`${kind}.${sessionId}`, { kind, sessionId, tag });
 	}
 	return tags;
 }
 
-function workspaceState(workspace: JsonObject): string | null {
-	const aggregate = objects(workspace.tags).find((tag) => string(tag.key) === "omp");
+function workspaceState(workspace: JsonObject, kind: string): string | null {
+	const aggregate = objects(workspace.tags).find((tag) => string(tag.key) === kind);
 	return string(aggregate?.value);
 }
 
-function piAgentDirectory(binding: JsonObject): string | undefined {
+function agentStateDirectory(binding: JsonObject): string | undefined {
 	const environments = [object(binding.environment), object(object(binding.launch_command)?.environment)];
 	for (const environment of environments) {
 		const directory = string(environment?.PI_CODING_AGENT_DIR);
@@ -150,28 +188,26 @@ function publicSession(session: InternalSession): Omit<InternalSession, "agentDi
 function sessionFromSurface(
 	workspace: JsonObject,
 	surface: JsonObject,
-	tag: JsonObject,
+	active: ActiveAgentTag,
 	selfSurfaceId: string | undefined,
-): InternalSession | undefined {
-	const binding = object(surface.resume_binding);
-	if (!binding || string(binding.kind) !== "omp") return undefined;
-	const sessionId = string(binding.checkpoint_id);
-	if (!sessionId || !OMP_SESSION_ID.test(sessionId)) return undefined;
-	const resources = object(tag.resources);
+): InternalSession {
+	const binding = object(surface.resume_binding) ?? {};
+	const resources = object(active.tag.resources);
 	const surfaceId = string(surface.id);
 	return {
-		kind: "omp",
-		sessionId,
+		kind: active.kind,
+		agent: AGENT_DISPLAY_NAMES[active.kind] ?? active.kind,
+		sessionId: active.sessionId,
 		active: true,
 		isSelf: selfSurfaceId ? surfaceId === selfSurfaceId : null,
-		processId: number(tag.pid),
+		processId: number(active.tag.pid),
 		cpuPercent: number(resources?.cpu_percent),
 		memoryBytes: number(resources?.memory_bytes),
 		workspace: {
 			id: string(workspace.id) ?? "",
 			ref: string(workspace.ref) ?? "",
 			title: boundedString(workspace.title, 256),
-			state: workspaceState(workspace),
+			state: workspaceState(workspace, active.kind),
 		},
 		pane: { id: string(surface.pane_id), ref: string(surface.pane_ref) },
 		surface: { id: surfaceId, ref: string(surface.ref), title: boundedString(surface.title, 512) },
@@ -180,25 +216,26 @@ function sessionFromSurface(
 			boundedString(object(binding.launch_command)?.working_directory, 512) ??
 			boundedString(surface.requested_working_directory, 512),
 		mapping: "surface-binding",
-		agentDirectory: piAgentDirectory(binding),
+		agentDirectory: agentStateDirectory(binding),
 	};
 }
 
-function orphanSession(workspace: JsonObject, sessionId: string, tag: JsonObject): InternalSession {
-	const resources = object(tag.resources);
+function orphanSession(workspace: JsonObject, active: ActiveAgentTag): InternalSession {
+	const resources = object(active.tag.resources);
 	return {
-		kind: "omp",
-		sessionId,
+		kind: active.kind,
+		agent: AGENT_DISPLAY_NAMES[active.kind] ?? active.kind,
+		sessionId: active.sessionId,
 		active: true,
 		isSelf: null,
-		processId: number(tag.pid),
+		processId: number(active.tag.pid),
 		cpuPercent: number(resources?.cpu_percent),
 		memoryBytes: number(resources?.memory_bytes),
 		workspace: {
 			id: string(workspace.id) ?? "",
 			ref: string(workspace.ref) ?? "",
 			title: boundedString(workspace.title, 256),
-			state: workspaceState(workspace),
+			state: workspaceState(workspace, active.kind),
 		},
 		pane: { id: null, ref: null },
 		surface: { id: null, ref: null, title: null },
@@ -228,32 +265,34 @@ async function discoverSessions(
 		const surfaceList = object(surfaceValues[index]);
 		if (!surfaceList) throw new Error(`cmux surface.list returned an invalid response for ${string(workspace.ref) ?? "workspace"}`);
 		for (const surface of objects(surfaceList.surfaces)) {
-			const sessionId = string(object(surface.resume_binding)?.checkpoint_id);
-			if (!sessionId) continue;
-			const tag = tags.get(sessionId);
-			if (!tag) continue;
-			const session = sessionFromSurface(workspace, surface, tag, selfSurfaceId);
-			if (session) {
-				sessions.push(session);
-				tags.delete(sessionId);
-			}
+			const binding = object(surface.resume_binding);
+			const kind = string(binding?.kind);
+			const sessionId = string(binding?.checkpoint_id);
+			if (kind === null || sessionId === null) continue;
+			const compositeKey = `${kind}.${sessionId}`;
+			const active = tags.get(compositeKey);
+			if (!active) continue;
+			sessions.push(sessionFromSurface(workspace, surface, active, selfSurfaceId));
+			tags.delete(compositeKey);
 		}
-		for (const [sessionId, tag] of tags) sessions.push(orphanSession(workspace, sessionId, tag));
+		for (const active of tags.values()) sessions.push(orphanSession(workspace, active));
 	}
 	return { sessions, selection };
 }
 
-function standardSessionRoots(agentDirectory: string | undefined): string[] {
+function standardSessionRoots(kind: string, agentDirectory: string | undefined): string[] {
+	const homeDirectory = TRANSCRIPT_HOME_DIRECTORIES[kind];
+	if (homeDirectory === undefined) return [];
 	const roots: string[] = [];
 	if (agentDirectory) roots.push(join(agentDirectory, "sessions"));
-	roots.push(join(homedir(), ".omp", "agent", "sessions"));
-	const profiles = join(homedir(), ".omp", "profiles");
+	roots.push(join(homedir(), homeDirectory, "agent", "sessions"));
+	const profiles = join(homedir(), homeDirectory, "profiles");
 	try {
 		for (const entry of readdirSync(profiles, { withFileTypes: true })) {
 			if (entry.isDirectory()) roots.push(join(profiles, entry.name, "agent", "sessions"));
 		}
 	} catch {
-		// A Pi-only installation may not have OMP profile roots.
+		// Profile roots are optional; a single-profile installation has none.
 	}
 	return roots;
 }
@@ -268,7 +307,13 @@ function directoryExists(path: string): boolean {
 
 function findTranscript(session: InternalSession, configuredRoots?: string[]): { path: string; duplicateCount: number } {
 	const suffix = `_${session.sessionId}.jsonl`;
-	const roots = configuredRoots ?? standardSessionRoots(session.agentDirectory);
+	const roots = configuredRoots ?? standardSessionRoots(session.kind, session.agentDirectory);
+	if (roots.length === 0) {
+		throw new Error(
+			`digest cannot read ${session.agent} transcripts; this extension only parses Oh My Pi and Pi session logs. ` +
+				`Read live output instead with cmux_state read_screen on ${session.surface.ref ?? "the session surface"}.`,
+		);
+	}
 	const candidates = new Map<string, { path: string; modified: number }>();
 	for (const root of roots) {
 		if (!directoryExists(root)) continue;
@@ -288,7 +333,11 @@ function findTranscript(session: InternalSession, configuredRoots?: string[]): {
 		}
 	}
 	const ordered = [...candidates.values()].sort((left, right) => right.modified - left.modified);
-	if (ordered.length === 0) throw new Error(`transcript for active session ${session.sessionId} was not found in OMP session roots`);
+	if (ordered.length === 0) {
+		throw new Error(
+			`transcript for active ${session.agent} session ${session.sessionId} was not found in ${roots.length} known session root(s)`,
+		);
+	}
 	return { path: ordered[0].path, duplicateCount: ordered.length - 1 };
 }
 
