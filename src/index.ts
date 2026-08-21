@@ -9,6 +9,7 @@ import { buildSignalArgs } from "./tools/signal";
 import { makeEventsExecute } from "./tools/events";
 import { buildBrowserArgs } from "./tools/browser";
 import { makeRpcExecute } from "./tools/rpc";
+import { makeAgentsExecute } from "./tools/agents";
 
 export { fallbackExec } from "./host";
 export { executeCmux } from "./exec";
@@ -19,6 +20,7 @@ export { buildSignalArgs } from "./tools/signal";
 export { buildEventsArgs } from "./tools/events";
 export { buildBrowserArgs } from "./tools/browser";
 export { buildRpcArgs } from "./tools/rpc";
+export { makeAgentsExecute } from "./tools/agents";
 
 export default function cmuxExtension(pi: ExtensionAPI): void {
 	const execApi: CmuxExec = {
@@ -83,6 +85,28 @@ export default function cmuxExtension(pi: ExtensionAPI): void {
 		approval: "read",
 		strict: true,
 		execute: makeExecute(execApi, buildStateArgs),
+	});
+
+	pi.registerTool({
+		name: "cmux_agents",
+		label: "cmux Agent Sessions",
+		description:
+			"Discover active OMP sessions by cmux workspace, window, or globally, with exact surface and working-directory attribution. list excludes the calling session by default. digest returns bounded conversational context from one active peer session.",
+		parameters: z.object({
+			action: z.enum(["list", "digest"]).describe("Agent-session operation"),
+			workspace: target,
+			window: target,
+			all: z.boolean().optional().describe("Include active OMP sessions from every cmux workspace"),
+			limit: z.number().int().min(1).max(25).optional().describe("Maximum sessions returned by list; default 25"),
+			offset: z.number().int().min(0).max(10000).optional().describe("Zero-based list offset for pagination"),
+			include_self: z.boolean().optional().describe("Include the calling OMP session; defaults to false"),
+			session: z.string().optional().describe("Session UUID or unambiguous prefix (digest)"),
+			messages: z.number().int().min(1).max(20).optional().describe("Recent conversational messages to include; default 8 (digest)"),
+		}),
+		loadMode: "discoverable",
+		approval: "read",
+		strict: true,
+		execute: makeAgentsExecute(),
 	});
 
 	pi.registerTool({

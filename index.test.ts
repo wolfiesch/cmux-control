@@ -280,6 +280,7 @@ describe("tool registration", () => {
 
 		expect(Object.fromEntries(registered.map((tool) => [tool.name, tool.approval]))).toEqual({
 			cmux_state: "read",
+			cmux_agents: "read",
 			cmux_events: "read",
 			cmux_signal: "write",
 			cmux_layout: "exec",
@@ -357,7 +358,7 @@ describe("execution results", () => {
 });
 
 describe("extension registration compatibility", () => {
-	test("registers tools with valid TypeBox schemas that pass TypeCompiler on all 7 tools", () => {
+	test("registers tools with valid TypeBox schemas that pass TypeCompiler on all 8 tools", () => {
 		const tools: Array<{ name: string; description: string; parameters: Record<string, unknown> }> = [];
 		const fakePi = {
 			registerTool(tool: { name: string; description: string; parameters: Record<string, unknown> }) {
@@ -366,10 +367,11 @@ describe("extension registration compatibility", () => {
 		};
 
 		cmuxExtension(fakePi as never);
-		expect(tools.length).toBe(7);
+		expect(tools.length).toBe(8);
 		const names = tools.map((t) => t.name);
 		expect(names).toEqual([
 			"cmux_state",
+			"cmux_agents",
 			"cmux_layout",
 			"cmux_terminal",
 			"cmux_signal",
