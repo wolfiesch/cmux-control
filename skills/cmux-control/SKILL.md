@@ -48,6 +48,17 @@ Use `digest` with an exact session ID or unambiguous prefix to read recent conve
 
 Do not read adjacent sessions speculatively. Use workspace peers when the user asks, when another visible session owns directly relevant context, or when concurrent work may overlap. Peer transcripts are the user's other conversations, so take what the task needs and nothing more.
 
+### Optional Completion-First Pruning
+
+Use this flow only when the user asks to investigate resource pressure, stale sessions, or active-agent sprawl. It is overkill for routine cmux work.
+
+1. Use `cmux_state` `top` to establish whether cmux sessions materially contribute to CPU or memory pressure, then use `cmux_agents` `list` at the narrowest useful scope. Broaden to `all: true` only for machine-wide diagnosis.
+2. Treat an `Idle` workspace as a candidate, not proof that its work is disposable. Prioritize candidates by resource impact instead of reading every transcript.
+3. For each candidate, request the smallest useful `digest`. A final assistant delivery that reports completed work with no later user request is positive evidence. Pending commands, waits, unresolved next steps, or ambiguous state mean keep the session. For runtimes that `digest` cannot parse, inspect the exact surface with `read_screen`.
+4. Before closing a workspace, verify every agent and non-agent surface it contains. If a workspace mixes completed and live work, close only the exact completed surface when the user authorizes it.
+5. Present the evidence-backed set separately from uninspected idle sessions and obtain explicit authorization before closing existing resources. Keep running or ambiguous work untouched.
+6. Close exact refs, then re-list sessions and re-measure the pressure signal that motivated cleanup. Report measured change; do not equate attributed session memory with guaranteed physical RAM recovery.
+
 ## Resource Choice
 
 - Create a split for a supporting process beside existing work.
