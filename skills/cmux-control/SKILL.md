@@ -56,8 +56,8 @@ Use this flow only when the user asks to investigate resource pressure, stale se
 2. Treat an `Idle` workspace as a candidate, not proof that its work is disposable. Prioritize candidates by resource impact instead of reading every transcript.
 3. For each candidate, request the smallest useful `digest`. A final assistant delivery that reports completed work with no later user request is positive evidence. Pending commands, waits, unresolved next steps, or ambiguous state mean keep the session. For runtimes that `digest` cannot parse, inspect the exact surface with `read_screen`.
 4. Before closing a workspace, verify every agent and non-agent surface it contains. If a workspace mixes completed and live work, close only the exact completed surface when the user authorizes it.
-5. Present the evidence-backed set separately from uninspected idle sessions and obtain explicit authorization before closing existing resources. Keep running or ambiguous work untouched.
-6. Close exact refs, then re-list sessions and re-measure the pressure signal that motivated cleanup. Report measured change; do not equate attributed session memory with guaranteed physical RAM recovery.
+5. Present the evidence-backed set separately from uninspected idle sessions, capturing each candidate's exact UUID alongside its display title, and obtain explicit authorization before closing existing resources. Keep running or ambiguous work untouched.
+6. Refresh the tree to re-verify state, then close by exact UUID (not transient short refs or indices, which can shift across multi-resource closures or user confirmation delays). Re-measure the pressure signal that motivated cleanup and report the observed change; do not equate attributed session memory with guaranteed physical RAM recovery.
 
 ## Resource Choice
 
