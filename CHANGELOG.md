@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0] - 2026-08-20
+
+### Added
+
+- `cmux_agents` tool: workspace-first discovery of active OMP sessions with exact pane, surface, cwd, and process attribution; caller exclusion by default; window and global scopes; and bounded conversational transcript digests.
+
+### Security
+
+- Agent discovery uses cmux's structured process tags and surface resume bindings. It does not inspect process environments, and transcript lookup reads only standard OMP session roots.
+
 ## [0.3.0] - 2026-08-20
 
 ### Added

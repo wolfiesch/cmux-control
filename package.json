@@ -1,6 +1,6 @@
 {
   "name": "omp-cmux",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Typed cmux automation tools for Pi and Oh My Pi coding agents: safe, programmatic workspace, pane, surface, and terminal control.",
   "type": "module",
   "license": "MIT",

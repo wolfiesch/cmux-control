@@ -31,6 +31,7 @@ Requirements:
 | Tool | Capability | Approval tier |
 | --- | --- | --- |
 | `cmux_state` | Tree, listings, terminal text, processes, sidebar state, todos, notifications | read |
+| `cmux_agents` | Active OMP sessions by workspace/window, exact surface attribution, bounded peer transcript digests | read |
 | `cmux_layout` | Create, split, move, reorder, resize, swap, break, join, rename, focus, close | exec |
 | `cmux_terminal` | Send text or keys, clear scrollback, respawn a surface process | exec |
 | `cmux_signal` | Status pills, progress bars, log entries, notifications, todos, status lane | write |
@@ -50,6 +51,9 @@ status pill plus progress while you watch the logs.
 
 Read the last 80 lines from surface:4, then send ctrl+c if the server is still
 running.
+List the other active OMP sessions in this workspace, then show me the latest
+six conversational messages from the session working on CI.
+
 
 Poll cmux events after seq 10032 and tell me when the build surface exits.
 
@@ -61,6 +65,9 @@ Open example.com in a cmux browser split, snapshot it, and read the page title.
 Most tools call `cmux` through the host's argv-based execution API, so user values remain individual arguments rather than shell-interpolated strings. `cmux_rpc` and `cmux_events poll` connect directly to cmux's per-user Unix socket, authenticate with the inherited capability or socket password, and use the newline-delimited v2 protocol. `cmux_events wait_for` remains a CLI call because it uses the tmux-compatible command path.
 
 - Listing actions pass `--json --id-format both`, so results carry both stable refs and UUIDs.
+- Agent-session discovery joins cmux's live `omp.<session-id>` process tags to authoritative surface resume bindings, so inactive resumable tabs are not reported as running sessions.
+- Agent-session lists return at most 25 rows per call and expose `offset`, `nextOffset`, and `totalCount` for bounded global pagination.
+- Peer transcript digests scan at most 8 MiB from the tail, emit a caller-selected number of conversational messages, and exclude thinking and tool payloads.
 - New workspaces, panes, splits, and surfaces default to `focus: false`.
 - Terminal input and destructive operations require explicit surface or workspace targets.
 - Workspace environment reads are always masked; secret values never enter the transcript.
