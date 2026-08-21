@@ -1,26 +1,27 @@
 {
-  "name": "omp-cmux",
+  "name": "cmux-control",
   "version": "0.4.0",
-  "description": "Typed cmux automation tools for Pi and Oh My Pi coding agents: safe, programmatic workspace, pane, surface, and terminal control.",
+  "description": "Typed control and cross-session awareness for coding agents running in cmux: workspaces, panes, surfaces, terminals, browser surfaces, and live agent-session discovery",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://github.com/wolfiesch/omp-cmux",
+  "homepage": "https://github.com/wolfiesch/cmux-control",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wolfiesch/omp-cmux.git"
+    "url": "git+https://github.com/wolfiesch/cmux-control.git"
   },
   "keywords": [
-    "pi-extension",
-    "pi-coding-agent",
-    "mariozechner-pi",
-    "oh-my-pi",
-    "omp",
     "cmux",
-    "terminal",
-    "multiplexer",
     "agent-tools",
     "coding-agent",
-    "agents"
+    "terminal",
+    "multiplexer",
+    "agents",
+    "claude-code",
+    "codex",
+    "oh-my-pi",
+    "omp",
+    "pi-extension",
+    "pi-coding-agent"
   ],
   "files": [
     "src",

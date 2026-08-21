@@ -1,7 +1,7 @@
 ---
 name: cmux-control
-description: This skill should be used when the user asks to "manage cmux panes", "control cmux programmatically", "create a cmux workspace", "split my cmux layout", "open an agent in cmux", "inspect other OMP sessions in this workspace", "read another cmux terminal", "send input to a cmux pane", "show progress in cmux", "wait for a cmux event", or "drive the cmux browser".
-version: 0.3.0
+description: This skill should be used when the user asks to "manage cmux panes", "control cmux programmatically", "create a cmux workspace", "split my cmux layout", "open an agent in cmux", "see what other agent sessions are running in this workspace", "read another agent's recent conversation", "read another cmux terminal", "send input to a cmux pane", "show progress in cmux", "wait for a cmux event", or "drive the cmux browser".
+version: 0.4.0
 ---
 
 # cmux Control
@@ -11,7 +11,7 @@ Use the typed cmux tools to control a live cmux instance without constructing sh
 | Tool | Purpose |
 | --- | --- |
 | `cmux_state` | Read-only inspection: tree, listings, terminal text, processes, sidebar, todos |
-| `cmux_agents` | Discover active OMP sessions and read bounded peer conversation digests |
+| `cmux_agents` | Discover active agent sessions and read bounded peer conversation digests |
 | `cmux_layout` | Create, split, move, resize, swap, reorder, rename, focus, close |
 | `cmux_terminal` | Send text or keys, clear scrollback, respawn a surface process |
 | `cmux_signal` | Status pills, progress, log entries, notifications, todos, status lane |
@@ -38,11 +38,15 @@ Listing actions return JSON with both refs and UUIDs. Mutations print `OK <ref>`
 
 ## Agent Sessions
 
-Use `cmux_agents` `list` when the task depends on another visible OMP session. Its default scope is the caller's workspace and it excludes the caller. Pass an explicit `workspace`, `window`, or `all: true` only when the request requires broader context.
+Use `cmux_agents` `list` when the task depends on another visible agent session. Its default scope is the caller's workspace and it excludes the caller. Pass an explicit `workspace`, `window`, or `all: true` only when the request requires broader context.
 
-Use `digest` with an exact session ID or unambiguous prefix to read recent conversational messages. Prefer the smallest useful `messages` value. Digests exclude thinking and tool payloads, scan a bounded transcript tail, and only resolve active sessions in the selected scope.
+Discovery spans every agent runtime cmux tags, not just this host: Claude Code, Codex, Cursor, Gemini, Copilot, Amp, OpenCode, and others appear beside Oh My Pi and Pi sessions, each carrying its `kind` and display name. Only sessions with a live process are listed, so a resumable but stopped surface never appears.
 
-Do not read adjacent sessions speculatively. Use workspace peers when the user asks, when another visible session owns directly relevant context, or when concurrent work may overlap.
+Use `digest` with an exact session ID or unambiguous prefix to read recent conversational messages. Prefer the smallest useful `messages` value. Digests exclude thinking and tool payloads and scan a bounded transcript tail.
+
+`digest` parses Oh My Pi and Pi session logs only. For any other agent kind it fails and names the agent; read that session's live output with `read_screen` on the surface from the `list` result instead.
+
+Do not read adjacent sessions speculatively. Use workspace peers when the user asks, when another visible session owns directly relevant context, or when concurrent work may overlap. Peer transcripts are the user's other conversations, so take what the task needs and nothing more.
 
 ## Resource Choice
 

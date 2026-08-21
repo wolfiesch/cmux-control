@@ -2,13 +2,21 @@
 
 ## [0.4.0] - 2026-08-20
 
+### Changed
+
+- Renamed the project from `omp-cmux` to `cmux-control`. The extension has always been host-neutral, loading under both Oh My Pi and Pi, and session discovery spans every agent runtime cmux tracks, so the old name understated its scope. Tool names are unchanged.
+- Repositioned around cross-session awareness rather than CLI wrapping, since an agent can already shell out to `cmux` for control.
+
 ### Added
 
-- `cmux_agents` tool: workspace-first discovery of active OMP sessions with exact pane, surface, cwd, and process attribution; caller exclusion by default; window and global scopes; and bounded conversational transcript digests.
+- `cmux_agents` tool: workspace-first discovery of active agent sessions with exact pane, surface, cwd, and process attribution; caller exclusion by default; window and global scopes; bounded pagination; and bounded conversational transcript digests.
+- Session discovery reads cmux's shared `<agent>.<session-id>` tag namespace, so Claude Code, Codex, Cursor, Gemini, Copilot, Amp, OpenCode, Grok, Kiro, Pi, and Oh My Pi sessions are all discoverable, with display names resolved per agent.
+- Sessions are distinguished from merely resumable surfaces: a persisted resume binding without a live process tag is never reported as running.
 
 ### Security
 
-- Agent discovery uses cmux's structured process tags and surface resume bindings. It does not inspect process environments, and transcript lookup reads only standard OMP session roots.
+- Agent discovery uses cmux's structured process tags and surface resume bindings. It does not inspect process environments, so no secret can leak through discovery.
+- `digest` parses only Oh My Pi and Pi session logs. For any other agent kind it fails with an explicit message naming the agent and pointing at `cmux_state read_screen`, rather than guessing at an unknown transcript format.
 
 ## [0.3.0] - 2026-08-20
 
